@@ -7,9 +7,7 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     mavenLocal()
-    mavenCentral(){
-
-    }
+    mavenCentral()
     maven("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven")
 }
 
@@ -18,7 +16,13 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-html:0.7.5")
     implementation("io.github.rkbalgi:iso4k:0.0.3")
 
+    val localPath = rootDir.absolutePath + "/src/main/js/specs"
+    implementation(npm("specs", File("$localPath")))
+
+
 }
+
+
 
 kotlin {
     js(IR) {
