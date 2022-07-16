@@ -14,7 +14,7 @@ repositories {
 dependencies {
     testImplementation(kotlin("test"))
     implementation("org.jetbrains.kotlinx:kotlinx-html:0.7.5")
-    implementation("io.github.rkbalgi:iso4k:0.0.3")
+    implementation("io.github.rkbalgi:iso4k:0.0.5")
 
     val localPath = rootDir.absolutePath + "/src/main/js/specs"
     implementation(npm("specs", File("$localPath")))
