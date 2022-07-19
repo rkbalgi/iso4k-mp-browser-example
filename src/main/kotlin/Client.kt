@@ -1,11 +1,8 @@
 import io.github.aakira.napier.Napier
 import io.github.rkbalgi.iso4k.*
-import io.github.rkbalgi.iso4k.charsets.encodedString
 import kotlinx.browser.document
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
 import kotlinx.html.*
 import kotlinx.html.dom.append
 import kotlinx.html.js.button
@@ -65,11 +62,10 @@ class Application : CoroutineScope {
             }
 
 
-
             val parserDiv = div { this.id = "parserDiv" }
-                parserDiv.apply {
+            parserDiv.apply {
                 this.style.display = "none"
-                this.style.width="600px"
+                this.style.width = "600px"
                 append {
                     h1 {
                         +"ISO8583 Spec Parser"
@@ -106,106 +102,116 @@ class Application : CoroutineScope {
                                             """.trimIndent()
                         text("Raw Hex Trace")
                     }
-                    div {}.append {
+                    //val fieldsDiv = div {} as HTMLDivElement
+                    div {
 
-                        val hexTrace = textArea(
-                            cols = "80",
-                            rows = "20"
-                        ) {
-                        } as HTMLTextAreaElement
-                        hexTrace.style.run {
-                            backgroundColor = "coral"
-                            fontFamily = "inherit"
+                    }.append {
+                        div {}.apply { style.cssFloat = "left" }.append {
 
-                            width = "600px"
-                        }
-                        br { }
+                            val hexTrace = textArea(
+                                cols = "80",
+                                rows = "20"
+                            ) {
+                            } as HTMLTextAreaElement
+                            hexTrace.style.run {
+                                backgroundColor = "coral"
+                                fontFamily = "inherit"
+                                width = "600px"
+                            }
+                            br { }
 
-                        var button1: HTMLElement? = null
-                        var button2: HTMLElement? = null
-                        val buttonDiv = div {
-                        } as HTMLDivElement
+                            var button1: HTMLElement? = null
+                            var button2: HTMLElement? = null
+                            val buttonDiv = div {
+                            } as HTMLDivElement
 
 
-                        buttonDiv.run {
+                            buttonDiv.run {
 
-                            style.apply {
-                                alignItems = "center"
-                                display = "flex"
-                                flex = "1"
-                                justifyContent = "center"
-                                //margin = "auto"
-                                width = "500px"
+                                style.apply {
+                                    alignItems = "center"
+                                    display = "flex"
+                                    flex = "1"
+                                    justifyContent = "center"
+                                    //margin = "auto"
+                                    width = "500px"
 
-                                append {
+                                    append {
 
-                                    button1 = button {
-                                        text("Parse")
-                                    }.apply {
-                                        style.fontFamily = "inherit"
-                                        width = "200px"
-                                    }
-                                    button2 = button {
-                                        text("Clear")
-                                    }.apply {
-                                        style.fontFamily = "'M PLUS 1 Code', sans-serif;"
-                                        style.fontFamily = "inherit"
-                                        width = "200px"
+                                        button1 = button {
+                                            text("Parse")
+                                        }.apply {
+                                            style.fontFamily = "inherit"
+                                            width = "200px"
+                                        }
+                                        button2 = button {
+                                            text("Clear")
+                                        }.apply {
+                                            style.fontFamily = "'M PLUS 1 Code', sans-serif;"
+                                            style.fontFamily = "inherit"
+                                            width = "200px"
+                                        }
                                     }
                                 }
                             }
-                        }
-
-                        val fieldsDiv = div {} as HTMLDivElement
 
 
-                        button2!!.onclick = {
-                            fieldsDiv.childNodes.asList().forEach { fieldsDiv.removeChild(it) }
-                        }
 
-                        button1!!.onclick = {
-                            val data = fromHexString(hexTrace.value)
-                            Napier.d {
-                                "Parsing - ${hexTrace.value}"
+
+                            button2!!.onclick = {
+                                val fieldsDiv = document.getElementById("fieldsDiv")!! as HTMLDivElement
+                                fieldsDiv.childNodes.asList()
+                                    .forEach { fieldsDiv.removeChild(it) }
                             }
-                            //parserDiv.style.apply { display="none" }
 
+                            button1!!.onclick = {
+                                val data = fromHexString(hexTrace.value)
+                                Napier.d {
+                                    "Parsing - ${hexTrace.value}"
+                                }
 
-                            val allFields = mutableListOf<Pair<String, String>>()
-                            val isoSpec = Spec.spec("SampleSpec2")!!
-                            val msgName = isoSpec.findMessage(data)
-                            if (msgName != null) {
-                                val msg = isoSpec.message(msgName)?.parse(data)!!
-                                val parsedMsg = ParsedMessage(msg)
+                                val fieldsDiv = document.getElementById("fieldsDiv")!! as HTMLDivElement
 
+                                val isoSpec = Spec.spec("SampleSpec2")!!
+                                val msgName = isoSpec.findMessage(data)
+                                if (msgName != null) {
+                                    val msg = isoSpec.message(msgName)?.parse(data)!!
+                                    val parsedMsg = ParsedMessage(msg)
 
-
-
-                                fieldsDiv.append {
-                                    div {
-                                        id="pdiv"
-                                        this.style = """
+                                    fieldsDiv.append {
+                                        div {
+                                            id = "pdiv"
+                                            this.style = """
                                             position: absolute; z-index: 9; background-color: #f1f1f1; border: 1px solid #d3d3d3;
                                         """.trimIndent()
-                                        div {
-                                            id="pdivheader"
-                                            style = """
+                                            div {
+                                                id = "pdivheader"
+                                                style = """
                                                 padding: 10px;cursor: move;z-index: 10; background-color: #2196F3;color: #fff;
                                             """.trimIndent()
-                                            text("Parsed Message")
+                                                text("Parsed Message")
+                                            }
+
+                                            ul {
+                                                addFields(this, parsedMsg)
+                                            }
                                         }
 
-                                        ul {
-                                            addFields(this, parsedMsg)
-                                        }
                                     }
 
                                 }
-
+                            }
+                        }
+                        div {}.append {
+                            div {
+                                id = "fieldsDiv"
+                            }.style.apply {
+                                this.cssFloat = "right"
                             }
                         }
                     }
                 }
+
             }
         }
     }
