@@ -1,9 +1,10 @@
 import io.github.rkbalgi.iso4k.Spec
 
-fun doInit(){
+fun doInit() {
 
-    Spec.addSpec("""
-                name: SampleSpec2
+    Spec.addSpec(
+        """
+                name: SampleSpec
                 id: 3
                 requestResponseMTIMapping:
                   - requestMTI: 1100
@@ -272,6 +273,7 @@ fun doInit(){
         
         
         
-    """.trimIndent())
+    """.trimIndent()
+    )
 
 }

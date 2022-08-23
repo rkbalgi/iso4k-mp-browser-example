@@ -6,11 +6,13 @@ import kotlinx.coroutines.Job
 import kotlinx.html.*
 import kotlinx.html.dom.append
 import kotlinx.html.js.button
+import kotlinx.html.js.onChangeFunction
 import kotlinx.html.js.onClickFunction
 import org.w3c.dom.*
 import kotlin.coroutines.CoroutineContext
 
 val app: Application = Application()
+var parsedMessage: ParsedMessage? = null
 fun main() {
 
 
@@ -83,7 +85,7 @@ class Application : CoroutineScope {
                                         text("")
                                         ul {
                                             li {
-                                                text("31313030f02420000000100e000000010000000131363435363739303938343536373132333530303430303030303030303030303030323937373935383132323034f8f4f077fcbd9ffc0dfa6f001072657365727665645f310a9985a28599a5858460f2f0f1f1383738373736323235323531323334e47006f5de8c70b9")
+                                                text("Sample Trace - 31313030f02420000000100e000000010000000131363435363739303938343536373132333530303430303030303030303030303030323937373935383132323034f8f4f077fcbd9ffc0dfa6f001072657365727665645f310a9985a28599a5858460f2f0f1f1383738373736323235323531323334e47006f5de8c70b9")
                                             }
                                         }
                                     }
@@ -97,8 +99,7 @@ class Application : CoroutineScope {
 
                     div {
 
-                        style = """
-                                                padding: 10px;cursor: move;z-index: 10; background-color: #2196F3;color: #fff;
+                        style = """padding: 10px;cursor: move;z-index: 10; background-color: #2196F3;color: #fff;
                                             """.trimIndent()
                         text("Raw Hex Trace")
                     }
@@ -109,10 +110,8 @@ class Application : CoroutineScope {
                         div {}.apply { style.cssFloat = "left" }.append {
 
                             val hexTrace = textArea(
-                                cols = "80",
-                                rows = "20"
-                            ) {
-                            } as HTMLTextAreaElement
+                                cols = "80", rows = "20"
+                            ) {} as HTMLTextAreaElement
                             hexTrace.style.run {
                                 backgroundColor = "coral"
                                 fontFamily = "inherit"
@@ -122,8 +121,7 @@ class Application : CoroutineScope {
 
                             var button1: HTMLElement? = null
                             var button2: HTMLElement? = null
-                            val buttonDiv = div {
-                            } as HTMLDivElement
+                            val buttonDiv = div {} as HTMLDivElement
 
 
                             buttonDiv.run {
@@ -160,8 +158,7 @@ class Application : CoroutineScope {
 
                             button2!!.onclick = {
                                 val fieldsDiv = document.getElementById("fieldsDiv")!! as HTMLDivElement
-                                fieldsDiv.childNodes.asList()
-                                    .forEach { fieldsDiv.removeChild(it) }
+                                fieldsDiv.childNodes.asList().forEach { fieldsDiv.removeChild(it) }
                             }
 
                             button1!!.onclick = {
@@ -172,11 +169,12 @@ class Application : CoroutineScope {
 
                                 val fieldsDiv = document.getElementById("fieldsDiv")!! as HTMLDivElement
 
-                                val isoSpec = Spec.spec("SampleSpec2")!!
+                                val isoSpec = Spec.spec("SampleSpec")!!
                                 val msgName = isoSpec.findMessage(data)
                                 if (msgName != null) {
                                     val msg = isoSpec.message(msgName)?.parse(data)!!
-                                    val parsedMsg = ParsedMessage(msg)
+                                    val parsedMsg = ParsedMessage(isoSpec.message(msgName)!!, msg)
+                                    parsedMessage = parsedMsg
 
                                     fieldsDiv.append {
                                         div {
@@ -225,6 +223,7 @@ fun addFields(ul: UL, parsedMessage: ParsedMessage) {
         ul {
             li {
                 textInput {
+                    id = "id_mti"
                     value = parsedMessage.mti()
                     this.size = "${value.length}"
                     this.style = "color: blue; font-family: inherit;"
@@ -238,6 +237,7 @@ fun addFields(ul: UL, parsedMessage: ParsedMessage) {
             li {
 
                 textInput {
+                    id = "id_bitmap"
                     value = parsedMessage.bitmap().bytes().toHexString()
                     this.size = "${value.length}"
                     this.style = "color: blue; font-family: inherit;"
@@ -249,7 +249,23 @@ fun addFields(ul: UL, parsedMessage: ParsedMessage) {
             parsedMessage.fields.forEachIndexed() { index: Int, fieldData: FieldData ->
                 ul.li {
                     if (fieldData.field.position > 0) {
-                        checkBoxInput { this.checked = true }
+                        checkBoxInput {
+
+                            this.id = "check_${fieldData.field.id}"
+                            this.checked = fieldData.data().isNotEmpty()
+                            this.onClickFunction = {
+
+
+                                if (fieldData.field.parent != null) {
+                                    if (fieldData.field.parent?.type == FieldType.Bitmapped) {
+                                        //find the bitmap, to recompute itself
+                                        recomputeBitmap(fieldData.field.position, this.checked)
+                                    }
+                                }
+                            }
+
+
+                        }
                     }
                     this.text(
                         "(${
@@ -270,9 +286,43 @@ fun addFields(ul: UL, parsedMessage: ParsedMessage) {
                         li {
 
                             textInput {
-                                value = fieldData.encodeToString()
+                                this.id = "fv_${fieldData.field.id}"
+                                value = if (fieldData.data().isNotEmpty()) {
+                                    fieldData.encodeToString()
+                                } else {
+                                    ""
+                                }
                                 this.size = "${value.length}"
                                 this.style = "color: blue; font-family: inherit;"
+
+                                this.onChangeFunction = {
+
+
+                                    var f = fieldData.field
+                                    println("changing .. ")
+                                    println("changed .. ${f.id}")
+
+                                    val newValue = (document.getElementById("fv_${f.id}")!! as HTMLInputElement).value
+                                    println("New value for ${f.name} is $newValue")
+                                    parsedMessage.msg.fieldData(f.name, newValue)
+
+                                    while (f.parent != null) {
+                                        f = f.parent!!
+                                    }
+
+                                    if (f.type == FieldType.Bitmapped) {
+                                        //The field is directly below bitmap, nothing to do
+                                    } else {
+                                        println("The top level parent for this is ${f.name}")
+
+                                        val newValue = FieldData(f, f.fieldData(parsedMessage.msg)).encodeToString()
+                                        this.size = "${newValue.length}"
+                                        this.value = newValue
+                                    }
+
+
+                                }
+
                             }
 
 
@@ -297,6 +347,22 @@ fun addFields(ul: UL, parsedMessage: ParsedMessage) {
     }
 
 
+}
+
+fun recomputeBitmap(position: Int, checked: Boolean) {
+
+    println("changing .. $position")
+
+    val checked1 = parsedMessage!!.bitmap().isOn(position)
+    println("changing .. $position $checked1")
+    if (checked1) parsedMessage!!.bitmap().setOff(position)
+    else {
+        parsedMessage!!.bitmap().setOn(position)
+    }
+    val textInput = document.getElementById("id_bitmap") as HTMLInputElement
+    textInput.value = FieldData(parsedMessage!!.bitmap().field!!, parsedMessage!!.bitmap().bytes()).encodeToString()
+
+    //println("new value for bitmap = ${textInput.value}")
 }
 
 fun add(parentUl: UL, parsedMessage: ParsedMessage, field: IsoField) {
@@ -334,18 +400,20 @@ fun add(parentUl: UL, parsedMessage: ParsedMessage, field: IsoField) {
 
 }
 
-class ParsedMessage(val msg: Message) {
+class ParsedMessage(private val msgSegment: MessageSegment, val msg: Message) {
 
     val fields = mutableListOf<FieldData>()
 
     init {
 
         for (i in 1..192) {
-
-
             if (i != 1 && i != 65 && i != 129) {
-                if (msg.bitmap().isOn(i)) {
-                    fields.add(msg.bitmap().get(i)!!)
+                if (msgSegment.bitmap().posDefined(i)) {
+                    if (msg.bitmap().isOn(i)) {
+                        fields.add(msg.bitmap().get(i)!!)
+                    } else {
+                        fields.add(FieldData(msgSegment.bitmap().pos(i), ByteArray(0)))
+                    }
                 }
             }
         }
